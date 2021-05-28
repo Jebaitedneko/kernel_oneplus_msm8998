@@ -1993,6 +1993,9 @@ struct task_struct {
 	u64 timer_slack_ns;
 	u64 default_timer_slack_ns;
 
+	/* Time that the task woke up or was last descheduled */
+	u64 waiting_time;
+
 #ifdef CONFIG_KASAN
 	unsigned int kasan_depth;
 #endif
@@ -2046,6 +2049,8 @@ struct task_struct {
 	unsigned long	task_state_change;
 #endif
 	int pagefault_disabled;
+	atomic64_t *concurrent_active_time;
+	atomic64_t *concurrent_policy_time;
 /* CPU-specific state of this task */
 	struct thread_struct thread;
 /*

@@ -187,5 +187,3 @@ obj-$(CONFIG_ESOC)              += esoc/
 obj-$(CONFIG_TEE)		+= tee/
 
 obj-y  += param_read_write/
-
-obj-$(CONFIG_OEM_DEBUG_SUPPORT)  += oneplus/

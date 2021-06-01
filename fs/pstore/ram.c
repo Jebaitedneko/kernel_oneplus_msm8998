@@ -250,7 +250,7 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	/* ECC correction notice */
 	ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
 
-	*buf = vmalloc(size + ecc_notice_size + 1);
+	*buf = kmalloc(size + ecc_notice_size + 1, GFP_KERNEL);
 	if (*buf == NULL)
 		return -ENOMEM;
 
@@ -321,10 +321,10 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 
 	/* Out of the various dmesg dump types, ramoops is currently designed
 	 * to only store crash logs, rather than storing general kernel logs.
-	 *
+	 */
 	if (reason != KMSG_DUMP_OOPS &&
 	    reason != KMSG_DUMP_PANIC)
-		return -EINVAL; */
+		return -EINVAL;
 
 	/* Skip Oopes when configured to do so. */
 	if (reason == KMSG_DUMP_OOPS && !cxt->dump_oops)

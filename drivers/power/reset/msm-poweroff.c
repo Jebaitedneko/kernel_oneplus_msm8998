@@ -63,19 +63,6 @@ static void scm_disable_sdi(void);
  * So the SDI cannot be re-enabled when it already by-passed.
 */
 
-static int in_panic;
-
-static int panic_prep_restart(struct notifier_block *this,
-			      unsigned long event, void *ptr)
-{
-	in_panic = 1;
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block panic_blk = {
-	.notifier_call	= panic_prep_restart,
-};
-
 #ifdef CONFIG_QCOM_DLOAD_MODE
 #define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
 #define DL_MODE_PROP "qcom,msm-imem-download_mode"
@@ -83,6 +70,7 @@ static struct notifier_block panic_blk = {
 #define KASLR_OFFSET_PROP "qcom,msm-imem-kaslr_offset"
 #endif
 
+static int in_panic;
 static int dload_type = SCM_DLOAD_FULLDUMP;
 #ifdef CONFIG_DLOAD_MODE_DEFAULT
 static int download_mode = -1;
@@ -116,12 +104,21 @@ struct reset_attribute {
 module_param_call(download_mode, dload_set, param_get_int,
 			&download_mode, 0644);
 
-#ifdef CONFIG_OEM_FORCE_DUMP
 int oem_get_download_mode(void)
 {
 	return download_mode;
 }
-#endif
+
+static int panic_prep_restart(struct notifier_block *this,
+			      unsigned long event, void *ptr)
+{
+	in_panic = 1;
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block panic_blk = {
+	.notifier_call	= panic_prep_restart,
+};
 
 int scm_set_dload_mode(int arg1, int arg2)
 {
@@ -289,9 +286,7 @@ static void halt_spmi_pmic_arbiter(void)
 static void msm_restart_prepare(const char *cmd)
 {
 	bool need_warm_reset = false;
-#ifdef CONFIG_OEM_FORCE_DUMP
 	bool oem_panic_record = false;
-#endif
 
 #ifdef CONFIG_QCOM_DLOAD_MODE
 
@@ -314,21 +309,14 @@ static void msm_restart_prepare(const char *cmd)
 		need_warm_reset = (get_dload_mode() ||
 				(cmd != NULL && cmd[0] != '\0'));
 	}
-#ifdef CONFIG_OEM_FORCE_DUMP
 	if (!download_mode &&
 			(in_panic || restart_mode == RESTART_DLOAD)) {
 		oem_panic_record = true;
 	}
 	qpnp_pon_set_restart_reason(0x00);
-	need_warm_reset = need_warm_reset || oem_panic_record;
-#endif
-
-#ifdef CONFIG_QCOM_PRESERVE_MEM
-	need_warm_reset = true;
-#endif
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
-	if (need_warm_reset) {
+	if (need_warm_reset || oem_panic_record) {
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 	} else {
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
@@ -371,12 +359,10 @@ static void msm_restart_prepare(const char *cmd)
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
 			__raw_writel(0x77665503, restart_reason);
-#if 0
 		} else if (!strcmp(cmd, "dm-verity device corrupted")) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_DMVERITY_CORRUPTED);
 			__raw_writel(0x77665508, restart_reason);
-#endif
 		} else if (!strcmp(cmd, "dm-verity enforcing")) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_DMVERITY_ENFORCE);
@@ -416,12 +402,10 @@ static void msm_restart_prepare(const char *cmd)
 		}
 	}
 
-#ifdef CONFIG_OEM_FORCE_DUMP
 	if (oem_panic_record) {
 		qpnp_pon_set_restart_reason(PON_RESTART_REASON_PANIC);
 		__raw_writel(OEM_PANIC, restart_reason);
 	}
-#endif
 	flush_cache_all();
 
 	/*outer_flush_all is not supported by 64bit kernel*/
@@ -483,9 +467,7 @@ static void do_msm_poweroff(void)
 	pr_notice("Powering off the SoC\n");
 
 	set_dload_mode(0);
-#ifdef CONFIG_OEM_FORCE_DUMP
 	qpnp_pon_set_restart_reason(0x00);
-#endif
 	scm_disable_sdi();
 	qpnp_pon_system_pwr_off(PON_POWER_OFF_SHUTDOWN);
 
@@ -633,12 +615,11 @@ static int msm_restart_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret = 0;
 
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
-
 #ifdef CONFIG_QCOM_DLOAD_MODE
 	if (scm_is_call_available(SCM_SVC_BOOT, SCM_DLOAD_CMD) > 0)
 		scm_dload_supported = true;
 
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
 	np = of_find_compatible_node(NULL, NULL, DL_MODE_PROP);
 	if (!np) {
 		pr_err("unable to find DT imem DLOAD mode node\n");

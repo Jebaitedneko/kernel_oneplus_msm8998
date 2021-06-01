@@ -16,10 +16,8 @@
 #include <linux/syscalls.h>
 #include <linux/syscore_ops.h>
 #include <linux/uaccess.h>
-#ifdef CONFIG_OEM_FORCE_DUMP
 #include <linux/delay.h>
 #include <linux/oem_force_dump.h>
-#endif
 
 /*
  * this indicates whether you can reboot with ctrl-alt-del: the default is yes
@@ -225,7 +223,6 @@ void kernel_restart(char *cmd)
 	else
 		pr_emerg("Restarting system with command '%s'\n", cmd);
 
-#ifdef CONFIG_OEM_FORCE_DUMP
 	/*if enable dump, if dm-verity device corrupted, force enter dump */
 	if (oem_get_download_mode()) {
 		if (((cmd != NULL && cmd[0] != '\0') &&
@@ -235,7 +232,6 @@ void kernel_restart(char *cmd)
 			msleep(10000);
 		}
 	}
-#endif
 
 	kmsg_dump(KMSG_DUMP_RESTART);
 	machine_restart(cmd);

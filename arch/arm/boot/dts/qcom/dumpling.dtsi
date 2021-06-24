@@ -13,10 +13,6 @@
 #include "pxlw-iris-settings.dtsi"
 / {
 	reserved-memory {
-		ramoops_mem: ramoops_mem@ac000000 {
-			reg = <0 0xAC000000 0 0x00200000>;
-			label = "ramoops_mem";
-		};
 		param_mem: param_mem@ac200000 {
 			reg = <0 0xAC200000 0 0x00100000>;
 			label = "param_mem";
@@ -313,10 +309,15 @@
 			qcom,soc-low-threshold = <5>;
 		};
 	};
-	ramoops {
+	ramoops@ac000000 {
 		compatible = "ramoops";
+		reg = <0x00 0xac000000 0x00 0x00200000>;
+		record-size = <0x00050000>;
+		console-size = <0x00050000>;
+		ftrace-size = <0x00050000>;
+		pmsg-size = <0x00050000>;
+		ecc-size = <0>;
 		status = "ok";
-		memory-region = <&ramoops_mem>;
 	};
 
 	/* Add  0x9c 0x21C, 0xf0 0x23C */

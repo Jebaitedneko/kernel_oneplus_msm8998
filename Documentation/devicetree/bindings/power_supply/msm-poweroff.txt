@@ -22,6 +22,10 @@ Optional Properties:
 -reg-names: must contain "tcsr-boot-misc-detect" if the secondary address/size
       pair described above is defined.
 
+Optional Properties:
+-qcom,force-warm-reboot: Issue a warm reboot, even for the traditional cases
+				where hard reboot is issued.
+
 Example:
 
 	restart@fc4ab000 {
